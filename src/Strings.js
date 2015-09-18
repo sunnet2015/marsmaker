@@ -39,6 +39,13 @@ STR_IMG_TEXT_TITLE = 'resources/images/ui/text_title.png';
 STR_IMG_TEXT_LEVEL_COMPLETE = 'resources/images/ui/text_lc.png';
 STR_IMG_TEXT_LEVEL_FAILED = 'resources/images/ui/text_lf.png';
 
+SFX_PATH = "resources/sounds/sfx";
+SFX_FIREWORK = "Firework";
+SFX_EXPLODE = "Explode_02_01";
+SFX_HIT = "button";
+SFX_BUTTON = "button";
+
+
 ART_BACKGROUND = 'background';
 ART_PLANET = 'planet';
 

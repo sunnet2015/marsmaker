@@ -58,9 +58,7 @@ exports = scene(function() {
   /************************************************
   * LOADING GAME OBJECTS
   *************************************************/
-  var rotationGroup = [];
   var earth = scene.addActor(art(ART_PLANET));
-  rotationGroup.push(earth);
   var collisionGroup = scene.addGroup();
   var rotation_speed = 65;  // default rotation speed
   // Load map
@@ -73,11 +71,12 @@ exports = scene(function() {
     planet_object_data = level_data.LevelData.PlanetObjects.ObjectData;
     planet_object_data.forEach(function(obj_data){
       if (obj_data.type == "Building") {
-        rotationGroup.push(collisionGroup.addActor(art(obj_data.name), {
-          rotation: parseFloat(obj_data.angle) * DEG_TO_RAD,
-        }));
+        var obj = collisionGroup.addActor(art(obj_data.name));
+        obj.rotation = parseFloat(obj_data.angle) * DEG_TO_RAD;
+        logger.log(obj.rotation, obj.uid);
       }
     });
+    logger.log("collision", collisionGroup.getTotalCount(), collisionGroup);
   }
 
   if (Array.isArray(level_data.LevelData.PlayingObjects.ObjectData)){
@@ -112,25 +111,26 @@ exports = scene(function() {
     switch(game_state){
       case GS_DROPPING:
         dropping_object.y += DROPPING_SPEED;
+        logger.log(collisionGroup.getActiveCount());
+        collisionGroup.onAllCollisions(dropping_object, function(obj){
+          game_state = GS_COLLIDED;
+          scene.playSound(SFX_EXPLODE);
+          effects.explode(dropping_object);
+          effects.explode(obj);
+          dropping_object.destroy();
+          obj.destroy();
+        }, this);
         if (dropping_object.y >= PLANET_POSITION_Y - PLANET_RADIUS) {
           game_state = GS_PLAYING;
-         dropping_object.destroy(); rotationGroup.push(collisionGroup.addActor(art(dropping_object_data.name)));
+          scene.playSound(SFX_HIT);
+          dropping_object.destroy();
+          collisionGroup.addActor(art(dropping_object_data.name));
           if (playing_object_data.length > 0){
             dropping_object_data = playing_object_data.shift();
             dropping_object = scene.addActor(art(dropping_object_data.name));
             dropping_object.x = OBJECT_START_POSITION_X - dropping_object.view.height / 2;
             dropping_object.y = OBJECT_START_POSITION_Y;
             hud.SetTextRemain(playing_object_data.length + 1);
-            logger.log("collision", collision);
-            scene.collisions.remove(collision);
-            collision = scene.onCollision(dropping_object, collisionGroup, function(a, b){
-              game_state = GS_COLLIDED;
-              logger.log('collision: ', a.uid, b.uid);
-              effects.explode(a);
-              effects.explode(b);
-              a.destroy();
-              b.destroy();
-            });
           } else {
             game_state = GS_GAMEOVER;
           }
@@ -161,16 +161,7 @@ exports = scene(function() {
         break;
     }
   });
-  var collision = scene.onCollision(dropping_object, collisionGroup, function(a, b){
-    if (game_state == GS_DROPPING){
-      logger.log('collision: ', a.uid, b.uid);
-      effects.explode(a);
-      effects.explode(b);
-      a.destroy();
-      b.destroy();
-      game_state = GS_COLLIDED;
-    }
-  })
+  
   scene.screen.onDown(function(){
     logger.log('touch ', game_state);
     switch(game_state){
@@ -185,7 +176,8 @@ exports = scene(function() {
   /******************************************************/
 
   var rotate = function(speed){
-    rotationGroup.forEach(function(rot_obj){
+    earth.rotation += speed;
+    collisionGroup.forEachActiveActor(function(rot_obj){
       rot_obj.rotation += speed;
       var rotation_angle = rot_obj.rotation - Math.PI / 2;
       var rotation_radius = PLANET_RADIUS + rot_obj.view.height / 2;
@@ -193,7 +185,7 @@ exports = scene(function() {
         rot_obj.x = PLANET_POSITION_X - rot_obj.view.width / 2 + rotation_radius * Math.cos(rotation_angle);
         rot_obj.y = PLANET_POSITION_Y - rot_obj.view.height / 2 + rotation_radius * Math.sin(rotation_angle);
       }
-    });
+    }, this);
   }
 
   var CreateMenuEndGame = function(){
@@ -231,13 +223,10 @@ exports = scene(function() {
   };
 
   var ClearScene = function(){
-    scene.groups.forEach(function(obj){
-      obj.destroy();
-    });
-    scene.group.destroy();
-    while (rotationGroup.length > 0){
-      rotationGroup.pop().destroy();
-    }
+//    scene.groups.forEach(function(obj){
+//      obj.destroy();
+//    });
+//    scene.group.destroy();
   };
 
   var CreatePauseMenu = function(){
@@ -309,6 +298,10 @@ exports = scene(function() {
       Pause();
     }
   }, false);
+  
+  scene.addSound(SFX_EXPLODE, SFX_PATH);
+  scene.addSound(SFX_FIREWORK, SFX_PATH);
+  scene.addSound(SFX_HIT, SFX_PATH);
 });
 
 var EnterTitleScreen = function(){
